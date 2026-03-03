@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔨 Whack-A-Mole!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .hole {
+            aspect-ratio: 1;
+            background: linear-gradient(to bottom, #8B4513 0%, #654321 100%);
+            border-radius: 50% 50% 0 0 / 60% 60% 0 0;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+            box-shadow: inset 0 -10px 20px rgba(0,0,0,0.3);
+        }
+
+        .mole {
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            left: 10%;
+            bottom: -100%;
+            transition: bottom 0.2s ease;
+            font-size: 3em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .mole.up {
+            bottom: 0;
+        }
+
+        .mole.whacked {
+            animation: whack 0.3s ease;
+        }
+
+        @keyframes whack {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.3) rotate(10deg); }
+            100% { transform: scale(0.8) rotate(-10deg); bottom: -100%; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .start-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .difficulty-btn {
+            background: #f0f0f0;
+            color: #333;
+            padding: 10px 20px;
+        }
+
+        .difficulty-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .game-over {
+            text-align: center;
+            padding: 20px;
+            background: #ffe6e6;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .game-over.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .game-over h2 {
+            color: #d32f2f;
+            margin-bottom: 10px;
+        }
+
+        .game-over p {
+            font-size: 1.2em;
+            color: #666;
+        }
+
+        .hit-indicator {
+            position: fixed;
+            font-size: 2em;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease forwards;
+            z-index: 1000;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-50px); }
+        }
+
+        .difficulty-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .difficulty-label {
+            display: block;
+            margin-bottom: 10px;
+            color: #666;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🔨 Whack-A-Mole!</h1>
+        
+        <div class="game-over" id="gameOver">
+            <h2>🎉 Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>Accuracy: <span id="accuracy">0</span>%</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Score</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Time</div>
+                <div class="stat-value" id="timer">30</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Misses</div>
+                <div class="stat-value" id="misses">0</div>
+            </div>
+        </div>
+
+        <div class="difficulty-selector">
+            <span class="difficulty-label">Difficulty:</span>
+            <button class="difficulty-btn active" data-difficulty="easy">Easy</button>
+            <button class="difficulty-btn" data-difficulty="medium">Medium</button>
+            <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+        </div>
+
+        <div class="game-board" id="gameBoard">
+            <div class="hole"><div class="mole" data-index="0">🦫</div></div>
+            <div class="hole"><div class="mole" data-index="1">🦫</div></div>
+            <div class="hole"><div class="mole" data-index="2">🦫</div></div>
+            <div class="hole"><div class="mole" data-index="3">🦫</div></div>
+            <div class="hole"><div class="mole" data-index="4">🦫</div></div>
+            <div class="hole"><div class="mole" data-index="5">🦫</div></div>
+            <div class="hole"><div class="mole" data-index="6">🦫</div></div>
+            <div class="hole"><div class="mole" data-index="7">🦫</div></div>
+            <div class="hole"><div class="mole" data-index="8">🦫</div></div>
+        </div>
+
+        <div class="controls">
+            <button class="start-btn" id="startBtn">Start Game</button>
+        </div>
+    </div>
+
+    <script>
+        const moles = document.querySelectorAll('.mole');
+        const holes = document.querySelectorAll('.hole');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const missesDisplay = document.getElementById('misses');
+        const startBtn = document.getElementById('startBtn');
+        const gameOverDiv = document.getElementById('gameOver');
+        const finalScoreSpan = document.getElementById('finalScore');
+        const accuracySpan = document.getElementById('accuracy');
+        const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+
+        let score = 0;
+        let misses = 0;
+        let timeLeft = 30;
+        let gameActive = false;
+        let moleInterval;
+        let timerInterval;
+        let currentDifficulty = 'easy';
+
+        const difficulties = {
+            easy: { minTime: 800, maxTime: 1500, upTime: 1200 },
+            medium: { minTime: 500, maxTime: 1000, upTime: 800 },
+            hard: { minTime: 300, maxTime: 600, upTime: 500 }
+        };
+
+        // Difficulty selection
+        difficultyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!gameActive) {
+                    difficultyBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentDifficulty = btn.dataset.difficulty;
+                }
+            });
+        });
+
+        // Mole click handler
+        moles.forEach(mole => {
+            mole.addEventListener('click', (e) => {
+                if (!gameActive || !mole.classList.contains('up')) return;
+                
+                score += 10;
+                scoreDisplay.textContent = score;
+                
+                mole.classList.add('whacked');
+                mole.classList.remove('up');
+                
+                showHitIndicator(e.clientX, e.clientY, '+10');
+                
+                setTimeout(() => {
+                    mole.classList.remove('whacked');
+                }, 300);
+            });
+        });
+
+        // Hole click handler (for misses)
+        holes.forEach(hole => {
+            hole.addEventListener('click', (e) => {
+                if (!gameActive) return;
+                
+                const mole = hole.querySelector('.mole');
+                if (!mole.classList.contains('up')) {
+                    misses++;
+                    missesDisplay.textContent = misses;
+                    showHitIndicator(e.clientX, e.clientY, 'Miss!');
+                }
+            });
+        });
+
+        function randomMole() {
+            const index = Math.floor(Math.random() * moles.length);
+            return moles[index];
+        }
+
+        function popUp() {
+            if (!gameActive) return;
+
+            const mole = randomMole();
+            const config = difficulties[currentDifficulty];
+            const time = Math.random() * (config.maxTime - config.minTime) + config.minTime;
+
+            mole.classList.add('up');
+
+            setTimeout(() => {
+                mole.classList.remove('up');
+            }, config.upTime);
+        }
+
+        function startGame() {
+            score = 0;
+            misses = 0;
+            timeLeft = 30;
+            gameActive = true;
+            
+            scoreDisplay.textContent = score;
+            missesDisplay.textContent = misses;
+            timerDisplay.textContent = timeLeft;
+            gameOverDiv.classList.remove('show');
+            
+            startBtn.disabled = true;
+            startBtn.textContent = 'Playing...';
+            
+            const config = difficulties[currentDifficulty];
+            moleInterval = setInterval(popUp, config.minTime);
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(moleInterval);
+            clearInterval(timerInterval);
+            
+            moles.forEach(mole => mole.classList.remove('up'));
+            
+            startBtn.disabled = false;
+            startBtn.textContent = 'Play Again';
+            
+            const totalHits = score / 10;
+            const totalAttempts = totalHits + misses;
+            const accuracy = totalAttempts > 0 ? Math.round((totalHits / totalAttempts) * 100) : 0;
+            
+            finalScoreSpan.textContent = score;
+            accuracySpan.textContent = accuracy;
+            gameOverDiv.classList.add('show');
+        }
+
+        function showHitIndicator(x, y, text) {
+            const indicator = document.createElement('div');
+            indicator.className = 'hit-indicator';
+            indicator.textContent = text;
+            indicator.style.left = x + 'px';
+            indicator.style.top = y + 'px';
+            indicator.style.color = text === 'Miss!' ? '#d32f2f' : '#4caf50';
+            
+            document.body.appendChild(indicator);
+            
+            setTimeout(() => {
+                indicator.remove();
+            }, 1000);
+        }
+
+        startBtn.addEventListener('click', startGame);
+    </script>
+</body>
+</html>
